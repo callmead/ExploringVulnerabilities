@@ -1,0 +1,93 @@
+Exploring TCP Vulnerabilities
+
+For the "TCP Attack", you will need to run 3 virtual machines (SEED, Ubuntu, and Kali) in the VirtualBox. You can download these VMs by using the following links.
+
+* SEED– http://jupiter.syr.edu/seed/images/SEEDUbuntu-16.04-32bit.zip
+* UBUNTU 16.04– https://bit.ly/2IO9HBp
+* KALI 32-bit– https://bit.ly/2ErXVqW
+
+Follow the below instructions to create a local area network using the VMs.
+
+1. Once these three VMs are installed, click on Settings ! Network ! Change “Attached to” as Host-only Adapter, OK.
+
+2. For the Kali-32, in addition to the above step, enable the promiscuous mode. Settings, Network, Advanced, Promiscuous Mode, Allow VMs, OK
+
+3. Start all VMs and look for each other’s IP addresses. Try to ping each other and check if they are well connected.
+
+4. In case you need to connect to Internet, you would have to change the Network settings to NAT. However, remember that if the VM is configured to NAT, it cannot talk to other VMs. So, make sure that you revert the network setting back to “Host-only mode” so you can complete your actual tasks.
+
+5. For Kali-32, you would have to follow step 6 to install Netwox tool using the command (sudo apt-get install netwox). You will also need Wireshark, telnet, ssh installed on this Kali VM. If you do not find Wireshark, please install it using command "sudo apt-get install wireshark". Similarly install other packages if you see “command
+not found” after entering each word in the terminal. For this step, you need Internet. After done, change the network setting back to Host-only mode.
+
+6. Consider the following notation for representation purpose.
+* Kali-32 Attacker
+* Ubuntu: User
+* SEED: Server
+----------------------------------
+
+Using Netwox tool, you will be follow the following tasks to attack TCP protocol in the virtual setup that we have created earlier.
+
+Task 1: SYN Flooding Attack
+SYN flood is a form of DoS attack in which attackers send many SYN requests to a victim’s TCP port, but the attackers have no intention to finish the 3-way handshake procedure. Attackers either use spoofed IP address or do not continue the procedure. Through this attack, attackers
+can flood the victim’s queue that is used for half-opened connections, i.e. the connections that has finished SYN, SYN-ACK, but has not yet gotten a final ACK back. When this queue is full, the victim cannot take any more connection.
+
+The size of the queue has a system-wide setting. In Linux, we can check the setting using the following command:
+
+# sysctl -q net.ipv4.tcp_max_syn_backlog
+
+We can use command "netstat -na" to check the usage of the queue, i.e., the number of half-opened connection associated with a listening port. The state for such connections is SYNRECV. If the 3-way handshake is finished, the state of the connections will be ESTABLISHED.
+
+In this task, you need to demonstrate the SYN flooding attack on Telnet port 23. You can use the Netwox tool to conduct the attack, and then use a sniffer tool to capture the attacking packets. While the attack is going on, run the "netstat -na" command on the victim machine, and compare the result with that before the attack.
+
+Describe whether the attack is successful or not, If not, find out what could be the issue. The corresponding Netwox tool for this task is numbered 76. Here is a simple help screen for this tool. You can also type "netwox 76 –help" to get the help information.
+
+SYN Cookie Countermeasure: If your attack seems unsuccessful, one thing that you can investigate is whether the SYN cookie mechanism is turned on. SYN cookie is a defense mechanism to counter the SYN flooding attack. The mechanism will kick in if the machine detects that it is under the SYN flooding attack. You can use the sysctl command to turn on/off the SYN
+cookie mechanism:
+
+# sysctl -a | grep cookie (Display the SYN cookie flag)
+# sysctl -w net.ipv4.tcp_syncookies=0 (turn off SYN cookie)
+# sysctl -w net.ipv4.tcp_syncookies=1 (turn on SYN cookie)
+
+Consider Kali VM as attacker and SeedLab as Victim machine. Run Wireshark on Kali to see it is flooding with SYN packets from different IP addresses.
+
+* Please run your attacks with the SYN cookie mechanism on and off, and compare the results by trying to open TELNET session (telnet victim_IP) while the attack is going on. See if the you are successful in creating telnet or the connection is getting refused.
+
+# sudo netwox 76 -i victim_IP -p 23 -s raw // To conduct SYN flooding
+
+* In your report, please describe why the SYN cookie can effectively protect the machine against the SYN flooding attack.
+
+Task 2: TCP Reset Attack on telnet and ssh connection
+
+The TCP RSTAttack can terminate an established TCP connection between two victims (Ubuntu and Seed). For example, if there is an established telnet connection (TCP) between two users A and B, attackers can spoof a RST packet from A to B, breaking this existing connection. To succeed in this attack, attackers need to correctly construct the TCP RST packet. In this task, you need to launch an TCP RST attack to break an existing TELNET (Port 23) connection between A and B. After that, try the same attack on an SSH (Port 22) connection. Please describe your observations. To simplify the assignment, we assume that the attacker and the victim are on the
+same LAN, i.e., the attacker can observe the TCP traffic between A and B.
+
+The corresponding Netwox tool for this task is numbered 40. Here is a simple help screen for this tool. You can also type "netwox 40 –help" to get the help information.
+
+You need to find the correct sequence number (seqNo), source IP, destination IP, source port, destination port from the last TCP packet shown in the Attacker’s Wireshark application.
+
+# netwox 40 -l srcIP –m destIP -o srcPort -p dstPort -q seqNo
+
+Task 3: TCP Session Hijacking
+
+The objective of the TCP Session Hijacking attack is to hijack an existing TCP connection (session) between two VMs (Ubuntu and Seed) by injecting malicious contents into this session. If this connection is a telnet session, attackers can inject malicious commands (e.g. deleting an important file) into this session, causing the victims to execute the malicious commands. In this task, you need to demonstrate how you can hijack a telnet session between two VMs. Your goal is to get the telnet server to run a malicious command from the attacker (Kali). For the simplicity of the task, we assume that the attacker and the victim are on the same LAN.
+
+Note: If you use Wireshark to observe the network traffic, you should be aware that when Wireshark displays the TCP sequence number, by default, it displays the relative sequence number, which equals to the actual sequence number minus the initial sequence number. If you want to see the actual sequence number in a packet, you need to right click the TCP section of the Wireshark output, and select "Protocol Preference". In the popup window, uncheck the "Relative Sequence Number andWindow Scaling" option.
+
+The corresponding Netwox tool for this task is numbered 40. Here is part of the help screen for this tool. You can also type "netwox 40 –help" to get the full help information. You may also need to use Wireshark to find out the correct parameters for building the spoofed TCP
+packet.
+
+When attackers are able to inject a command to the victim’s machine using TCP session hijacking, they are not interested in running one simple command on the victim machine; they are interested in running many commands. Obviously, running these commands all through TCP
+session hijacking is inconvenient. What attackers want to achieve is to use the attack to set up a back door, so they can use this back door to conveniently conduct further damages.
+
+A typical way to set up back doors is to run a reverse shell from the victim machine to give the attack the shell access to the victim machine. Reverse shell is a shell process running on a remote machine, connecting back to the attacker’s machine. This gives an attacker a convenient
+way to access a remote machine once it has been compromised.
+
+In the following, we will show how we can set up a reverse shell if we can directly run a command on the victim machine (i.e. the server machine). In the TCP session hijacking attack, attackers cannot directly run a command on the victim machine, so their jobs is to run a reverseshell
+command through the session hijacking attack. In this task, students need to demonstrate that they can achieve this goal.
+
+To have a bash shell on a remote machine connect back to the attacker’s machine, the attacker needs a process waiting for some connection on a given port. You need to use netcat which will allow to specify a port number to listen for a connection on that port. netcat (nc for short)
+is used to listen for a connection on port 9090.
+
+Your task is (by following the slides from Class) to launch an TCP session hijacking attack on an existing telnet session between a Ubuntu VM and the SEED server. You need to inject your malicious command into the hijacked session, so you can get a reverse shell on the target
+server. You can use either Netwox or Scapy for this task (using Scapy is more convenient)
+
